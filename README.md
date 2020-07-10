@@ -8,6 +8,6 @@ Basically, it reverses what [Twison](https://github.com/lazerwalker/twison) did.
 
 Screenshot:
 
-[<img src='screenshot.jpg' width='200'/>](screenshot.jpg)
+[<img src='screenshot.jpg' width='800'/>](screenshot.jpg)
 
 Try online: [https://williamsp.github.io/perkakas/jswine](https://williamsp.github.io/perkakas/jswine)
