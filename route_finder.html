@@ -1,0 +1,169 @@
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+<script>
+	var cache=[];
+	function find_parent(j, child_id) {
+		var r=[];
+		if(cache.indexOf(child_id) > 0) return cache[child_id];
+		
+		j.passages.map(p => {
+			if(p.links) {
+				p.links.map((l,li) => {
+					if(l.pid && l.pid==+child_id) {
+						r.push(p.pid + String.fromCharCode(li+65));
+					}
+				});
+			}
+		});
+		cache[child_id] = r;
+		return r;
+	}
+	
+	function OKbtn() {
+		var start=+$('#from').val();
+		var end=+$('#to').val();
+		var i=$('#in').val();
+		try {
+			var j=JSON.parse(i);
+			var cur=end;
+			var data=[];
+			data.push(cur+"");
+			
+			while(cur != start) {
+				var res=find_parent(j, cur);
+				if(res.length == 0) break;
+				//console.log(res);
+				data.push(res[0]);
+				cur = res[0].replace(/[A-Z]/,"");
+			}
+			
+			var res=data;
+			
+			var o="";
+			o += "Panjang/Length: "+res.length+"\n\n";
+			o += "Langkah/Steps : "+res.reverse().join(" > ")+"\n\n";
+			o += "Rincian/Detail: \n";
+			
+			res.map(r=>{
+				var pid = r.replace(/[A-Z]/,"");
+				var link = r.replace(pid,"").charCodeAt()-65;
+				
+				j.passages.map(p => {
+					if(p.pid==pid) {
+						if(p.tags) o += "[" +p.tags.join(", ") + "]\n";
+						o += p.name.replace(/\n /g,"\n") + "\n";
+						if(link != null && p.links) {
+							p.links.map((l,li) => {
+								console.log(l,li)
+								if(li==link) o += "> " + l.name.replace(/\n /g,"\n").replace(/\n/g,"\n> ") + "\n";
+							});
+						}
+					}
+				});
+			});
+			$('#out').val(o);
+		} catch(err) { alert(err); }
+	}
+	
+	function upload() {
+		const file = event.target.files[0];
+		const reader = new FileReader();
+		reader.addEventListener('load', event => {
+			$('#in').val(event.target.result);
+		});
+		reader.readAsText(file);
+	}
+	
+	function download() {
+		var blob = new Blob([$("#out").val().replace(/\n/g,"\r\n")], {type: 'text/plain'});
+		var elem = window.document.createElement('a');
+        elem.href = window.URL.createObjectURL(blob);
+        elem.download = "output.txt";        
+        document.body.appendChild(elem);
+        elem.click();        
+        document.body.removeChild(elem);
+	}
+</script>
+
+<style>
+	body { text-align:center; font-family:sans-serif }
+	input, button { width:100% }
+	textarea { width:100%; min-width:100%; height:150px; border: 1px solid grey }
+	#from, #to { width:60px }
+</style>
+
+<title>Twine Route Finder oleh William Surya Permana</title>
+
+<h2>Twine Route Finder</h2>
+Menghasilkan pentunjuk walkthrough untuk mencapai akhir cerita tertentu pada novel visual berbasis Twine<br>
+<i>Generates walkthrough guide to reach a certain ending in a Twine based visual novel</i><br>
+
+<h3>PID</h3>
+Dari/<i>From</i>: <input id=from value=1 type="number" min="0" />
+Ke/<i>To</i>:     <input id=to   value=2 type="number" min="0" />
+
+<h3>JSON Input</h3>
+<input type=button value="Unggah / Upload" onclick="$('#file').click()"/>
+<input type="file" id="file" style="display:none" onchange="upload()">
+<textarea id="in">
+{
+  "passages": [
+    {
+      "text": "This is a passage that goes to [[No Where->nowhere]].\n\nor is to [[somewhere]]?\n\nHere's a [[third link]]\n\nClick [[me->someNode]]",
+      "links": [
+        {
+          "name": "No Where",
+          "link": "nowhere",
+          "pid": "3"
+        },
+        {
+          "name": "somewhere",
+          "link": "somewhere",
+          "pid": "2"
+        },
+        {
+          "name": "third link",
+          "link": "third link",
+          "pid": "4"
+        },
+        {
+          "name": "me",
+          "link": "someNode",
+          "pid": "5"
+        }
+      ],
+      "name": "First passage",
+      "pid": "1",
+      "position": {
+        "x": "553.3333333333334",
+        "y": "38.333333333333336"
+      },
+      "tags": [
+        "tag",
+        "second-tag"
+      ]
+    },
+    {
+      "text": "You found me!",
+      "name": "somewhere",
+      "pid": "2",
+      "position": {
+        "x": "893.3333333333334",
+        "y": "241.66666666666669"
+      }
+    }
+  ],
+  "name": "Test",
+  "startnode": "1",
+  "creator": "Twine",
+  "creator-version": "2.0.9",
+  "ifid": "1881C2BE-C764-4D33-ACC6-7BAEBB6D770A"
+}
+</textarea>
+<input type=button value="Hasilkan / Generate" onclick="OKbtn()"/><br><br>
+
+<h3>Output</h3>
+<textarea id="out" readonly></textarea>
+<input type=button value="Unduh / Download" onclick="download()"/>
+
+<br><br><a href="https://github.com/williamsp/twine_tool">Github</a> &middot; &copy; 2020 William Surya Permana
