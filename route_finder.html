@@ -1,50 +1,117 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
 <script>
-	var cache=[];
+	var cache={};
 	function find_parent(j, child_id) {
-		var r=[];
-		if(cache.indexOf(child_id) > 0) return cache[child_id];
+		var data=[];
+		if(cache.hasOwnProperty(child_id)) return cache[child_id];
 		
 		j.passages.map(p => {
 			if(p.links) {
 				p.links.map((l,li) => {
 					if(l.pid && l.pid==+child_id) {
-						r.push(p.pid + String.fromCharCode(li+65));
+						data.push(p.pid + String.fromCharCode(li+65));
 					}
 				});
 			}
 		});
-		cache[child_id] = r;
-		return r;
+		cache[child_id] = data;
+		return data;
+	}
+	
+	function create_tree(j, child_id, start) {
+		var data={};
+		var cur=child_id;
+		
+		if(cur != start) {
+			var res=find_parent(j, child_id);
+			if(res.length == 0) return false;
+			
+			res.map(parent => {
+				cur = parent.replace(/[A-Z]/,"");
+				data[parent] = create_tree(j, cur, start);
+			});
+			return data;
+		}
+		
+		return false;
+	}
+	
+	function flatten(obj, prev) {
+		var data=[];
+		if(!prev) prev='';
+		Object.keys(obj).map(k=>{
+			if(obj[k]) {
+				var n=flatten(obj[k], prev+k+"-")
+				data = [...data, ...n];
+				//console.log(">>", data, n);
+			} else {
+				data = [prev+k];
+			}
+		});
+		return data;
+		
+		/*var data=[];
+		if(!prev) prev=[];
+		Object.keys(obj).map(k=>{
+			prev.push(k);
+			if(obj[k]) {
+				var n=flatten(obj[k], prev)
+				data = [...data, ...n];
+				console.log(">>", data, n);
+			} else {
+				data.push([...prev]);
+				prev=[];
+			}
+		});
+		return data;*/
 	}
 	
 	function OKbtn() {
 		var start=+$('#from').val();
 		var end=+$('#to').val();
 		var i=$('#in').val();
+		var opt = $("input[name='opt']:checked").val();
 		try {
 			var j=JSON.parse(i);
-			var cur=end;
-			var data=[];
-			data.push(cur+"");
+			var paths=[];
+			var preview=[];
+			cache={}
 			
-			while(cur != start) {
-				var res=find_parent(j, cur);
-				if(res.length == 0) break;
-				//console.log(res);
-				data.push(res[0]);
-				cur = res[0].replace(/[A-Z]/,"");
+			if(opt=="first") {
+				var cur=end;
+				var data=[cur+""];
+				while(cur != start) {
+					var res=find_parent(j, cur);
+					if(res.length == 0) break;
+					
+					cur = res[0].replace(/[A-Z]/,"");
+					data.push(res[0]);
+				}
+				
+				paths.push(data);
+				preview = data;
+			}		
+			
+			if(opt=="all") {
+				var data={}
+				var k=end+"";
+				data[k] = create_tree(j, end, start);
+				
+				paths = flatten(data).map(d=>d.split("-"));
+				preview = paths.reduce((a, b) => a.length < b.length ? a : b);
+				console.log(preview);
 			}
 			
-			var res=data;
-			
 			var o="";
-			o += "Panjang/Length: "+res.length+"\n\n";
-			o += "Langkah/Steps : "+res.reverse().join(" > ")+"\n\n";
-			o += "Rincian/Detail: \n";
+			o += "Jalur yang tersedia/Available paths: \n"
+			paths.map(p=>{
+				o += "- ("+p.length+") "+p.reverse().join(" > ")+(p==preview?' (*)':'')+"\n";
+			});
+			o += "\n";
 			
-			res.map(r=>{
+			o += "Rincian/Detail (*): \n";
+			preview.map(r=>{
 				var pid = r.replace(/[A-Z]/,"");
 				var link = r.replace(pid,"").charCodeAt()-65;
 				
@@ -54,7 +121,6 @@
 						o += p.name.replace(/\n /g,"\n") + "\n";
 						if(link != null && p.links) {
 							p.links.map((l,li) => {
-								console.log(l,li)
 								if(li==link) o += "> " + l.name.replace(/\n /g,"\n").replace(/\n/g,"\n> ") + "\n";
 							});
 						}
@@ -88,8 +154,10 @@
 <style>
 	body { text-align:center; font-family:sans-serif }
 	input, button { width:100% }
+	label input { width:auto }
 	textarea { width:100%; min-width:100%; height:150px; border: 1px solid grey }
 	#from, #to { width:60px }
+	#opt { text-align:left; margin: 0 auto; width:800px; width:max-content }
 </style>
 
 <title>Twine Route Finder oleh William Surya Permana</title>
@@ -101,6 +169,12 @@ Menghasilkan pentunjuk walkthrough untuk mencapai akhir cerita tertentu pada nov
 <h3>PID</h3>
 Dari/<i>From</i>: <input id=from value=1 type="number" min="0" />
 Ke/<i>To</i>:     <input id=to   value=2 type="number" min="0" />
+
+<h3>Option</h3>
+<div id="opt">
+<label><input type="radio" name="opt" value="first" checked /> Berhenti setelah pertama kali menemukan jalur rute / <i>Stop when a route path is found for the first time</i></label><br>
+<label><input type="radio" name="opt" value="all" /> Teruskan hingga mendapatkan rute dengan jalur terpendek / <i>Continue until route with shortest path is found</i></label>
+</div>
 
 <h3>JSON Input</h3>
 <input type=button value="Unggah / Upload" onclick="$('#file').click()"/>
